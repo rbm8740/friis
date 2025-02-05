@@ -6,31 +6,28 @@ PAYLOAD_DIR = config/payloads
 PROJECTS = $(wildcard $(PAYLOAD_DIR)/*)
 
 # Targets
-all: generate build
+all: build generate
 
 generate:
-    go generate
+	go generate ./config
 
-build: generate
-    @for dir in $(PROJECTS); do \
-        if [ -d $$dir ]; then \
-            $(MAKE) -C $$dir; \
-        fi; \
-    done
-    go build .
+.PHONY: generate
+
+build:
+	@for dir in $(PROJECTS); do \
+		if [ -d $$dir ]; then \
+			payload_name=$$(basename $$dir); \
+			echo "Building $$payload_name..."; \
+			go build -o $$dir/$$payload_name.dll -buildmode=c-shared $$dir/$$payload_name.go; \
+		fi; \
+	done
 
 clean:
-    @for dir in $(PROJECTS); do \
-        if [ -d $$dir ]; then \
-            $(MAKE) -C $$dir clean; \
-        fi; \
-    done
-    del /f $(wildcard $(PAYLOAD_DIR)/**/*.o) $(wildcard $(PAYLOAD_DIR)/**/*.dll)
-
-# Rules
-$(PAYLOAD_DIR)/%/$(DLL): $(PAYLOAD_DIR)/%/$(OBJ)
-	$(CC) $^ -o $@ $(LDFLAGS)
-
-$(PAYLOAD_DIR)/%/$(OBJ): $(PAYLOAD_DIR)/%/myfile.c
-	$(CC) $(CFLAGS) -o $@ -c $<
-
+	@for dir in $(PROJECTS); do \
+		if [ -d $$dir ]; then \
+			if [ -f $$dir/Makefile ] && grep -q 'clean' $$dir/Makefile; then \
+				$(MAKE) -C $$dir clean; \
+			fi; \
+		fi; \
+	done
+	rm -f $(wildcard $(PAYLOAD_DIR)/**/*.o) $(wildcard $(PAYLOAD_DIR)/**/*.dll)
